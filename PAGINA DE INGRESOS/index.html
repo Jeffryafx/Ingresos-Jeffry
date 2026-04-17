@@ -230,6 +230,13 @@ select option{background:var(--surface2)}
   padding:16px 18px;
   margin-bottom:10px;
   border:1px solid transparent;
+  cursor:pointer;
+  transition:all .2s;
+}
+.sobre:hover{
+  transform:translateY(-2px);
+  border-color:currentColor;
+  box-shadow:0 4px 16px rgba(0,0,0,0.3);
 }
 .sobre-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .sobre-name{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:.3px}
@@ -544,6 +551,32 @@ select option{background:var(--surface2)}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- MODAL SOBRE DETALLE -->
+<div class="modal" id="modal-sobre" onclick="if(event.target.id==='modal-sobre') cerrarModalSobre()">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modal-sobre-title">Sobre</h2>
+      <button class="modal-close" onclick="cerrarModalSobre()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Dinero disponible</div>
+        <div id="modal-sobre-monto" style="font-family:'Syne',sans-serif;font-size:32px;font-weight:700;color:var(--green);margin-bottom:4px">$0</div>
+        <div id="modal-sobre-porcentaje" style="font-size:12px;color:var(--muted)">0% de tu presupuesto</div>
+      </div>
+      
+      <div style="margin-bottom:20px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Descripción</div>
+        <div id="modal-sobre-desc" style="font-size:13px;line-height:1.6;color:var(--text)"></div>
+      </div>
+
+      <div id="modal-sobre-indicadores" style="margin-bottom:20px"></div>
+      
+      <div id="modal-sobre-consejos" style="margin-top:20px"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─── DATOS ───────────────────────────────────────────────
@@ -892,6 +925,87 @@ function delPagoSem(id){
   renderSobres();
   toast('✓ Pago eliminado');
 }
+function abrirModalSobre(key){
+  const ingSem=ingEspM()/4;
+  const fijosS=gastosFijosM()/4;
+  const recibido=totalPagosSem();
+  const base=Math.max(recibido,ingSem);
+  const ahorro=Math.round(base*.20);
+  const ocio=Math.round(base*.10);
+  const ocioSem=ocio;
+  const trab=Math.round(base*.05);
+  const fijosR=Math.round(fijosS);
+  const deudasR=Math.round((S.cfg.deudas||0)/4);
+  const libre=Math.max(0,Math.round(base-fijosR-deudasR-ahorro-ocio-trab));
+  const montos={fijos:fijosR,deudas:deudasR,ahorro,ocio,trabajo:trab,libre};
+  
+  const sobre=SOBRES.find(s=>s.key===key);
+  if(!sobre)return;
+  
+  const monto=montos[key]||0;
+  const pp=base>0?Math.round((monto/base)*100):0;
+  
+  document.getElementById('modal-sobre-title').textContent=sobre.label;
+  document.getElementById('modal-sobre-monto').textContent=cop(monto);
+  document.getElementById('modal-sobre-monto').style.color=sobre.c;
+  document.getElementById('modal-sobre-porcentaje').textContent=`${pp}% de tu presupuesto`;
+  document.getElementById('modal-sobre-desc').textContent=sobre.desc;
+  
+  // Indicadores
+  let indicadores='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Indicadores</div>';
+  indicadores+=`<div class="prog-bar" style="background:rgba(0,0,0,0.2);margin-bottom:12px"><div class="prog-fill" style="width:${pp}%;background:${sobre.c}"></div></div>`;
+  indicadores+=`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px"><span>Presupuesto: ${cop(monto)}</span><span>${pp}% usado</span></div>`;
+  document.getElementById('modal-sobre-indicadores').innerHTML=indicadores;
+  
+  // Consejos personalizados
+  let consejos='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px">💡 Consejos</div>';
+  
+  if(key==='ocio'){
+    if(monto>0){
+      consejos+=`<div class="alert alert-ok">✓ <strong>Puedes salir esta semana</strong><br/>Tienes ${cop(monto)} para gastar con tu pareja sin culpa.</div>`;
+      if(monto>ocioSem*1.5) consejos+=`<div class="alert alert-warn" style="margin-top:8px">💡 Tienes bastante saldo. Considera ahorrar 1-2 semanas para un plan especial más grande.</div>`;
+    } else {
+      consejos+=`<div class="alert alert-bad">✗ <strong>No hay saldo disponible</strong><br/>El sobre de ocio está vacío. Guarda este dinero para la próxima semana o dentro de 2 semanas para un plan especial.</div>`;
+    }
+  } else if(key==='deudas'){
+    if(monto>0){
+      consejos+=`<div class="alert alert-bad">⚠️ <strong>PRIORIDAD: Debes pagar esto primero</strong><br/>Asegúrate de cubrir los ${cop(monto)} de deudas antes que cualquier gasto.</div>`;
+    } else {
+      consejos+=`<div class="alert alert-ok">✓ <strong>¡Sin deudas esta semana!</strong><br/>Excelente, tus cuotas están al día.</div>`;
+    }
+  } else if(key==='ahorro'){
+    if(monto>0){
+      consejos+=`<div class="alert alert-ok">🔒 <strong>INTOCABLE: Nunca toques este dinero</strong><br/>Tienes ${cop(monto)} en ahorro. Es tu red de seguridad financiera.</div>`;
+      if(monto>base*0.30) consejos+=`<div class="alert alert-warn" style="margin-top:8px">💡 Has acumulado un buen colchón de emergencia. ¡Excelente!</div>`;
+    }
+  } else if(key==='fijos'){
+    if(monto>0){
+      consejos+=`<div class="alert alert-ok">✓ <strong>Gastos fijos asegurados</strong><br/>Tienes ${cop(monto)} para cubrir arriendo, comida base y servicios.</div>`;
+    } else {
+      consejos+=`<div class="alert alert-warn">⚠️ <strong>No hay presupuesto fijo</strong><br/>Configura tus gastos fijos en Configuración para que se calculen automáticamente.</div>`;
+    }
+  } else if(key==='trabajo'){
+    if(monto>0){
+      consejos+=`<div class="alert alert-ok">✓ <strong>Presupuesto para invertir en ti</strong><br/>Tienes ${cop(monto)} para software, cursos o herramientas que mejoren tu productividad.</div>`;
+    } else {
+      consejos+=`<div class="alert alert-warn">💡 <strong>Sin presupuesto para desarrollo</strong><br/>Cuando tengas saldo, úsalo en cursos o herramientas que aumenten tus ingresos.</div>`;
+    }
+  } else if(key==='libre'){
+    if(monto>0){
+      consejos+=`<div class="alert alert-ok">✓ <strong>Dinero flexible</strong><br/>Tienes ${cop(monto)} que puedes gastar libremente en lo que necesites.</div>`;
+      if(monto>base*0.20) consejos+=`<div class="alert alert-warn" style="margin-top:8px">💡 Es mucho dinero libre. Considera moverlo a ahorro o un gasto planificado.</div>`;
+    } else {
+      consejos+=`<div class="alert alert-warn">💡 <strong>Sin dinero libre esta semana</strong><br/>Todo tu presupuesto está asignado. La próxima semana tendrás más opciones.</div>`;
+    }
+  }
+  
+  document.getElementById('modal-sobre-consejos').innerHTML=consejos;
+  
+  document.getElementById('modal-sobre').classList.add('open');
+}
+function cerrarModalSobre(){
+  document.getElementById('modal-sobre').classList.remove('open');
+}
 function renderSobres(){
   const elp=document.getElementById('pagos-semana');
   if(!S.pagos_sem.length){
@@ -921,13 +1035,25 @@ function renderSobres(){
   SOBRES.forEach(s=>{
     const m=montos[s.key]||0;
     const pp=base>0?Math.min(100,Math.round((m/base)*100)):0;
-    sh+=`<div class="sobre" style="background:${s.bg};border-color:${s.border}">
+    let badge='';
+    
+    // Badges especiales para decisiones importantes
+    if(s.key==='ocio'){
+      if(m>0) badge='<span style="background:rgba(61,228,160,.2);color:var(--green);font-size:10px;padding:4px 10px;border-radius:12px;font-weight:600;margin-left:8px">✓ PUEDES SALIR</span>';
+      else badge='<span style="background:rgba(255,92,92,.2);color:var(--red);font-size:10px;padding:4px 10px;border-radius:12px;font-weight:600;margin-left:8px">✗ SIN SALDO</span>';
+    } else if(s.key==='deudas'){
+      badge=`<span style="background:rgba(255,92,92,.2);color:var(--red);font-size:10px;padding:4px 10px;border-radius:12px;font-weight:600;margin-left:8px">⚠ PRIORIDAD</span>`;
+    } else if(s.key==='ahorro'){
+      badge='<span style="background:rgba(61,228,160,.2);color:var(--green);font-size:10px;padding:4px 10px;border-radius:12px;font-weight:600;margin-left:8px">🔒 INTOCABLE</span>';
+    }
+    
+    sh+=`<div class="sobre" style="background:${s.bg};border-color:${s.border}" onclick="abrirModalSobre('${s.key}')">
       <div class="sobre-header">
-        <span class="sobre-name" style="color:${s.c}">${s.label}</span>
+        <span class="sobre-name" style="color:${s.c}">${s.label}${badge}</span>
         <span class="sobre-amount" style="color:${s.c}">${cop(m)}</span>
       </div>
       <div class="prog-bar" style="background:rgba(0,0,0,0.2)"><div class="prog-fill" style="width:${pp}%;background:${s.c}"></div></div>
-      <div class="sobre-desc" style="color:${s.c}">${s.desc}</div>
+      <div class="sobre-desc" style="color:${s.c}">Haz clic para más detalles →</div>
     </div>`;
   });
   document.getElementById('sobres-render').innerHTML=sh;
@@ -944,6 +1070,14 @@ function renderSobres(){
     estHtml+=diff>=0
       ?`<div class="alert alert-ok" style="margin-top:12px">Recibiste ${cop(diff)} extra. Va directo al sobre de ahorro.</div>`
       :`<div class="alert alert-warn" style="margin-top:12px">Faltan ${cop(Math.abs(diff))} para cubrir la semana. Cuida el sobre de ocio.</div>`;
+    
+    // Alert especial: ¿Puedes salir?
+    const ocioDisponible=montos.ocio||0;
+    if(ocioDisponible>0){
+      estHtml+=`<div class="alert alert-ok" style="margin-top:8px;background:rgba(61,228,160,.12);border-color:var(--green)"><strong>✓ Puedes salir esta semana</strong><br/>Tienes ${cop(ocioDisponible)} disponibles para salidas.</div>`;
+    } else {
+      estHtml+=`<div class="alert alert-bad" style="margin-top:8px;background:rgba(255,92,92,.12);border-color:var(--red)"><strong>✗ No hay saldo para salidas</strong><br/>El sobre de ocio está vacío esta semana. Guardalo para la próxima.</div>`;
+    }
   }
   document.getElementById('estado-semana').innerHTML=estHtml;
 }
@@ -1043,6 +1177,16 @@ document.getElementById('fecha-hoy').textContent=
   d.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 document.getElementById('sb-tasa').textContent=
   '$'+Number(S.cfg.tasa||4200).toLocaleString('es-CO')+' COP/USD';
+
+// Cerrar modal con ESC
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape'){
+    const modal=document.getElementById('modal-sobre');
+    if(modal.classList.contains('open')){
+      cerrarModalSobre();
+    }
+  }
+});
 
 renderResumen();
 </script>
