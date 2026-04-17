@@ -374,10 +374,6 @@ select option{background:var(--surface2)}
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       Sobres
     </div>
-    <div class="nav-item" onclick="goTab('salidas',this)">
-      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      Salidas
-    </div>
 
     <div class="nav-section">Sistema</div>
     <div class="nav-item" onclick="goTab('config',this)">
@@ -490,23 +486,7 @@ select option{background:var(--surface2)}
       </div>
     </div>
 
-    <!-- SALIDAS -->
-    <div class="tab-content" id="tab-salidas">
-      <div class="page-header main-header">
-        <div><div class="page-title">Salidas con tu pareja</div><div class="page-date">Plan mensual de ocio</div></div>
-      </div>
-      <div class="card" id="salidas-budget"></div>
-      <div class="card">
-        <div class="card-title">Plan del mes — 4 semanas</div>
-        <div id="plan-semanas"></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Reglas de oro</div>
-        <div class="alert alert-ok" style="margin-bottom:10px">Solo salís cuando el sobre de ocio tiene saldo. Si está vacío, no hay salida — sin excepción ni culpa.</div>
-        <div class="alert alert-warn" style="margin-bottom:10px">Si llegó un pago grande, el presupuesto de ocio no cambia. Lo extra va al sobre de ahorro.</div>
-        <div class="alert alert-warn">¿Quieren un plan especial? Guarden el sobre 2–3 semanas y tienen el doble o triple.</div>
-      </div>
-    </div>
+
 
     <!-- CONFIG -->
     <div class="tab-content" id="tab-config">
@@ -653,7 +633,7 @@ function goTab(t, el){
   const renders = {
     resumen:renderResumen, ingresos:renderIngresos,
     gastos:renderGastos, sobres:renderSobres,
-    salidas:renderSalidas, config:loadConfig
+    config:loadConfig
   };
   if(renders[t]) renders[t]();
 }
@@ -1082,53 +1062,7 @@ function renderSobres(){
   document.getElementById('estado-semana').innerHTML=estHtml;
 }
 
-// ─── SALIDAS ─────────────────────────────────────────────
-function renderSalidas(){
-  const ingM=ingEspM()||3024000;
-  const ocioBud=Math.round(ingM*.10);
-  const ocioSem=Math.round(ocioBud/4);
-  document.getElementById('salidas-budget').innerHTML=`
-    <div class="card-title">Presupuesto de ocio</div>
-    <div class="metrics" style="margin-bottom:0">
-      <div class="metric" style="--accent:var(--pink)">
-        <div class="metric-label">Por mes</div>
-        <div class="metric-value" style="color:var(--pink)">${cop(ocioBud)}</div>
-        <div class="metric-sub">10% de tus ingresos</div>
-      </div>
-      <div class="metric" style="--accent:var(--pink)">
-        <div class="metric-label">Por semana</div>
-        <div class="metric-value" style="color:var(--pink)">${cop(ocioSem)}</div>
-        <div class="metric-sub">Tope semanal fijo</div>
-      </div>
-      <div class="metric" style="--accent:var(--purple)">
-        <div class="metric-label">Plan especial (2 sem)</div>
-        <div class="metric-value" style="color:var(--purple)">${cop(ocioSem*2)}</div>
-        <div class="metric-sub">Ahorrando 2 semanas</div>
-      </div>
-    </div>
-  `;
 
-  const planes=[
-    {sem:'Semana 1',tipo:'Plan económico',plan:'Heladería artesanal + malecón del río',costo:Math.min(ocioSem,55000),col:'var(--pink)'},
-    {sem:'Semana 2',tipo:'Semana de ahorro',plan:'Guardar el sobre completo para plan especial',costo:0,ahorro:true,col:'var(--green)'},
-    {sem:'Semana 3',tipo:'Plan especial (presupuesto doble)',plan:'Restaurante + postre o actividad cultural',costo:Math.min(ocioSem*2,160000),col:'var(--purple)'},
-    {sem:'Semana 4',tipo:'Plan casero',plan:'Noche de película en casa + domicilio',costo:Math.min(ocioSem,40000),col:'var(--teal)'},
-  ];
-  let ph='';
-  planes.forEach(p=>{
-    ph+=`<div class="plan-card">
-      <div class="plan-week">${p.sem}</div>
-      <div class="plan-body">
-        <div>
-          <div class="plan-name">${p.plan}</div>
-          <div class="plan-type">${p.tipo}</div>
-        </div>
-        <div class="plan-cost" style="color:${p.col}">${p.ahorro?cop(0):cop(p.costo)}</div>
-      </div>
-    </div>`;
-  });
-  document.getElementById('plan-semanas').innerHTML=ph;
-}
 
 // ─── CONFIG ──────────────────────────────────────────────
 function exportarDatos(){
