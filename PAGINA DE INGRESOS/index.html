@@ -517,12 +517,36 @@ select option{background:var(--surface2)}
           <button class="btn btn-primary btn-full" onclick="guardarConfig()">Guardar cambios</button>
         </div>
       </div>
+      <div class="card" style="border-color:rgba(167,139,250,.25);grid-column:1/-1">
+        <div class="card-title" style="color:var(--purple)">Sincronizar entre dispositivos</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Tus datos viven en este navegador. Para pasarlos al celular (o de celular al PC), genera el código aquí y pégalo en el otro dispositivo.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+          <button class="btn btn-ghost" onclick="exportarCodigoSync()" style="border-color:rgba(167,139,250,.4);color:var(--purple)">Generar código para exportar</button>
+          <button class="btn btn-ghost" onclick="mostrarImport()" style="border-color:rgba(34,211,238,.4);color:var(--teal)">Tengo un código para importar</button>
+        </div>
+        <div id="export-box" style="display:none;margin-bottom:16px">
+          <p id="export-hint" style="font-size:12px;color:var(--amber);margin-bottom:8px">Mantén presionado el texto → Seleccionar todo → Copiar</p>
+          <textarea id="export-text" rows="5" readonly style="width:100%;background:var(--surface2);border:1px solid rgba(167,139,250,.4);border-radius:var(--radius-sm);color:var(--purple);padding:10px 13px;font-size:12px;font-family:monospace;resize:none;outline:none;word-break:break-all"></textarea>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <button class="btn btn-ghost" onclick="seleccionarTodo()" style="border-color:rgba(167,139,250,.4);color:var(--purple)">Seleccionar todo el texto</button>
+            <button class="btn btn-ghost" onclick="cerrarExport()">Cerrar</button>
+          </div>
+        </div>
+        <div id="import-area" style="display:none">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Pega aquí el código que copiaste desde el otro dispositivo:</p>
+          <textarea id="import-text" rows="5" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:10px 13px;font-size:12px;font-family:monospace;resize:vertical;outline:none;word-break:break-all" placeholder="Pega el código aquí..."></textarea>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <button class="btn btn-primary" onclick="importarDatos()">Importar y reemplazar datos</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('import-area').style.display='none'">Cancelar</button>
+          </div>
+        </div>
+      </div>
       <div class="card" style="border-color:rgba(255,92,92,.25)">
         <div class="card-title" style="color:var(--red)">Zona de peligro</div>
         <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Borra todos los ingresos y gastos registrados del mes actual. Los pagos semanales también se limpian. Esta acción no se puede deshacer.</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-danger" onclick="resetMes()">Limpiar mes actual</button>
-          <button class="btn btn-ghost" onclick="exportarDatos()" style="border-color:rgba(61,228,160,.4);color:var(--green)">⬇ Descargar respaldo</button>
+          <button class="btn btn-ghost" onclick="descargarRespaldoJSON()" style="border-color:rgba(61,228,160,.4);color:var(--green)">⬇ Descargar respaldo</button>
         </div>
       </div>
     </div>
@@ -1064,8 +1088,55 @@ function renderSobres(){
 
 
 
+// ─── SINCRONIZACIÓN ──────────────────────────────────────
+function exportarCodigoSync(){
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+  const ta = document.getElementById('export-text');
+  ta.value = encoded;
+  document.getElementById('export-box').style.display = 'block';
+  document.getElementById('import-area').style.display = 'none';
+  ta.focus();
+  ta.setSelectionRange(0, encoded.length);
+  try{ navigator.clipboard.writeText(encoded); } catch(e){}
+}
+function seleccionarTodo(){
+  const ta = document.getElementById('export-text');
+  ta.focus();
+  ta.setSelectionRange(0, ta.value.length);
+  try{ navigator.clipboard.writeText(ta.value); toast('Copiado al portapapeles'); } catch(e){ toast('Selecciona el texto manualmente y cópialo'); }
+}
+function cerrarExport(){
+  document.getElementById('export-box').style.display='none';
+}
+function mostrarImport(){
+  document.getElementById('import-area').style.display='block';
+  document.getElementById('export-box').style.display='none';
+}
+function importarDatos(){
+  const txt = (document.getElementById('import-text').value||'').trim();
+  if(!txt){ toast('Pega el código primero.'); return; }
+  try{
+    const decoded = JSON.parse(decodeURIComponent(escape(atob(txt))));
+    if(!decoded.ing || !decoded.gas || !decoded.cfg) throw new Error('Formato inválido');
+    S = decoded;
+    save();
+    document.getElementById('import-text').value='';
+    document.getElementById('import-area').style.display='none';
+    document.getElementById('export-box').style.display='none';
+    renderResumen();
+    renderIngresos();
+    renderGastos();
+    renderSobres();
+    loadConfig();
+    goTab('resumen', document.querySelectorAll('.nav-item')[0]);
+    toast('✓ Datos importados — revisa el Resumen');
+  } catch(e){
+    toast('Código inválido. Asegúrate de copiar el texto completo.');
+  }
+}
+
 // ─── CONFIG ──────────────────────────────────────────────
-function exportarDatos(){
+function descargarRespaldoJSON(){
   if(!confirm('Se descargará un respaldo de todos tus datos (JSON).\n¿Continuar?'))return;
   
   const dataStr=JSON.stringify(S, null, 2);
